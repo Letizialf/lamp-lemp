@@ -1,37 +1,54 @@
 services:
   apache:
-    build: apache-php-lamp
+    build: ./apache-php-lamp #Ubicación do Dockerfile a partir do cal se constrúe este servicio
     ports:
-      - "80:80"
+      - "80:80" 
       - "443:443"
     volumes:
-      ./prestashop_8.2.1:/app
-      #vhost apache
-      #php.ini
-      #certificados
-    networks:
+      - ./prestashop_8.2.1:/app #Volume para facer accesible dentro do cintedor todos os arquivos de Prestashop
+      - ./certificados:/certificados #Certificados accesibles dende dentro do docker
+      - ./apache-php-lamp/vhost-apache.conf/:/etc/apache2/sites-enabled/install.conf #volumen para que los archivos de configuración estén también disponibles y sean aceptados por el contenedor
+    env_file: #Montamos o encfile para as variables de entorno
+      - ./.env.dev
+    networks: #Engadimos o servicio na rede
       redelamplemp:
-        aliases:
+        aliases: #Non é necesario poñer o Alias
           - test.lan
+
   basededatos:
     image: mysql:latest
-    environment:
-      #Configuracion da BD de desenrolo
-    volumes:
-      - datos:/var/lib/mysql
-    networks:
+    env_file: #Na base de datos tamén temos que montar o env_file para que se configure con esas variables de entorno
+      - ./.env.dev
+    volumes: #Facemos a base de datos persistente para que non se borren os datos IMPORTANTE
+      - data:/var/lib/mysql #Este volume está definido ao final do compose 
+      - ./basededatos/:/scripts/ #Montamos os scripts tamén porque o de backup hai que executalodende dentro do contedor 
+    networks: #Metemos o servicio na rede
       redelamplemp:
-  #phpmuadmin se se necesita
-  cliente:
-    hostname: cliente
-    image: brunosct/debian12-cliente-firefox
-    networks:
-      - redelamplemp
+
+
+  phpmyadmin: #Este servicio é opcional, pero non está de máis para poder comprobar cousas da base de datos
+    image: phpmyadmin
+    ports:
+      - 8080:80 #puerto en el que estará disponible el servicio
+    networks: #metemos el servicio en la red de prueba
+      redelamplemp:
+    # Definimos el enlace con la base de datos
     environment:
-    - DISPLAY=${DISPLAY}
-    volumes:
-    - /tmp/.X11-unix:/tmp/.X11-unix  
+      - PMA_HOST=basededatos
+
+
+# CLIENTE solo funciona nos ordenadores do centro
+  # cliente:
+  #   hostname: cliente
+  #   image: brunosct/debian12-cliente-firefox
+  #   networks:
+  #     - redelamplemp
+  #   environment:
+  #   - DISPLAY=${DISPLAY}
+  #   volumes:
+  #   - /tmp/.X11-unix:/tmp/.X11-unix  
+
 volumes:
-  datos:
+  data:
 networks:
   redelamplemp:
